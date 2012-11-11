@@ -1,18 +1,21 @@
 #combat engine for final game project
-#Notice that on first build/debug I was getting a lot of errors because of asinine mistakes:
+#Notice that on first build/debug I was getting a lot of errors 
+#because of asinine mistakes:
 #capitalization and pluralization differences, etc.
 #Make sure to be incredibly careful when doing this.
+#STILL NEEDS FIXED: you can only engage an enemy when in the tile
+#to the right of them.
+#TODO: Add job classes, magic, a discernable plot, goal progression.
+#Also, could I make rooms that aren't square/rectangular?
 
 
-from sys import exit
-from random import randint, random
+from random import randint,random
 from time import sleep
-		
-		#TODO: create room progression, perhaps a randomly generated map system?
-		#TODO: create combat system
+from sys import exit
 
 class character(object):
-	"""This is the main PC, named after whatever you enter upon beginning the game."""
+	"""This is the main PC, named after whatever 
+	you enter upon beginning the game."""
 	def __init__(self, name, health, strength, vitality):
 		self.name = name
 		self.health = health
@@ -24,25 +27,24 @@ class character(object):
 		#self.speed = speed
 		self.x = -1
 		self.y = -1
-		
-	def navigate(self, x, y, room): 
-		#Also, this needs to be fixed so that you can approach an enemy from any direction.
-		if x < 0 or y < 0:
+
+	def navigate(self,x,y,room):
+		if x<0 or y<0:
 			raise IndexError
-			"""Navigate through or to any given coordinate in any room."""
+		"""navigate through or to any given coordinate in any room"""
 		if room.cells[y][x] == ' ':
 			try:
-				room.cells[self.y][self.x] = ' ' #I think adding = ' ' to the end of this line fixed the "O not clearing" error in navigation.
+				room.cells[self.y][self.x] = ' '
 			except IndexError:
 				pass
 			self.x = x
 			self.y = y
 			self.room = room
 			room.cells[y][x] = self
-			for cell in room.adjacent_cells(x, y): #see if this is right
+			for cell in room.adjacent_cells(x,y):
 				if str(type(cell)) == "<class '__main__.monster'>":
 					self.room.show()
-					fight = battle(self, cell, "You confront the {opponent}!")
+					fight = battle(self,cell,"You confront the {opponent}!")
 					fight = fight.fight()
 					if fight == "win":
 						room.cells[cell.y][cell.x] = ' '
@@ -52,89 +54,79 @@ class character(object):
 				return "success"
 			else:
 				return "fail"
-			
+
 
 class room(object):
-	"""mostly a list of cells with strings, monsters, or your character in them."""
-	def __init__(self, width, height, monsters):
-		self.width = width
-		self.height = height
-		self.monsters = monsters
-		self.cells = []
-		for y in range(self.height):
-			self.cells.append([])
-			for x in range(self.width):
-				self.cells[y].append(' ')
-		for monster in monsters:
-			self.cells[monster.y][monster.x] = monster
+    """mostly a list of cells with strings, monsters or your character in it"""
+    def __init__(self,width,height,monsters):
+        self.width = width
+        self.height = height
+        self.monsters = monsters
+        self.cells = []
+        for y in range(self.height):
+            self.cells.append([])
+            for x in range(self.width):
+                self.cells[y].append(' ')
+        for monster in monsters:
+            self.cells[monster.y][monster.x] = monster
+                
+                
+    def adjacent_cells(self,x,y):
+        adj_cells = []
+        if x == self.width-1:
+            offsetx = range(-1,1)
+        elif x == 0:
+            offsetx = range(0,2)
+        else:
+            offsetx = range(-1,2)
+        if y == self.height-1:
+            offsety = range(-1,1)
+        elif y == 0:
+            offsety = range(0,2)
+        else:
+            offsety = range(-1,2)
+        for dx in offsetx:
+            for dy in offsety:
+                if not dy == dx:
+                    adj_cells.append(self.cells[y+dy][x+dx])
 
-	#Here's the version of adjacent_cells() I typed out. I think the original ranges were buggy.	
-	def adjacent_cells(self, x, y):
-		adj_cells = [] #empty dict.
-		if x == self.width-1:			#if the cell position x is one less than the width of the room,
-			offsetx = range(-1, 1)		#the adjacent cell field is one on either side of it.
-		elif x == 0:
-			offsetx = range(0, 1)
-		else:
-			offsetx = range(-1, 1)
-		if y == self.height-1:
-			offsety = range(-1, 1)
-		elif y == 0:
-			offsety = range(0, 1)
-		else:
-			offsety = range(-1, 1)
-		for dx in offsetx:
-			for dy in offsety:
-				if not dy == dx:
-					adj_cells.append(self.cells[y+dy][x+dx])
-					
-		return adj_cells
+        return adj_cells
+        
+    def enter(self,player,x,y):
+        self.player = player
+        self.player.x = x
+        self.player.y = y
+        self.cells[y][x] = player
+        
+    def addmonsters(self,monsters):
+        for monster in monsters:
+            self.cells[monster.y][monster.x] = monster
+    
+    def addplayer(self,player):
+        if self.cells[player.y][player.x] != ' ':
+            self.cells[player.y][player.x] = player
+        else:
+            return "error"
 
-#Let's try to get adjacent_cells with different methodology...
-	
-#	def adjacent_cells(self, x, y):
-#		adj_cells = []
-#		adjacency = [(i,j) for i in (-1,0,1) for j in (-1,0,1) if not (i == j == 0)]
-#		for dx, dy in adjacency:
-#			if 0 <= (x + dx) < self.width and 0 <= (y + dy) < self.height:
-#				adj_cells.append(self.cells[x + dx][y + dy])
-#				
-#		return adj_cells
-		
-#this still doesn't work! I think it's an error with the math more than anything!
-				
-			
-	def enter(self, player, x, y):
-		self.player = player
-		self.player.x = x
-		self.player.y = y
-		self.cells[y][x] = player
-	
-	def addmonsters(self, monsters):
-		for monster in monsters:
-			self.cells[monster.y][monster.x] = monster
-	
-	def addplayer(self, player):
-		if self.cells[player.y][player.x] != ' ':
-			self.cells[player.y][player.x] = player
-		else:
-			return "error"
-			
-	def show(self): #FOR REAL the whole thing didn't work because I FORGOT THE DAGGONE COMMAS IN THE IF STATMENT
-		"""Shows the room in the command line.
-		The player is a tuple of coordinates;
-		The opponents comprise a list of tuples with coordinates.
-		"""
-		for line in self.cells:
-			for cell in line:
-				if str(type(cell)) == "<class '__main__.monster'>":
-					print "[x]",
-				elif str(type(cell)) == "<class '__main__.character'>":
-					print "[o]",
-				else:
-					print "[ ]",
-			print "\n"
-			
+
+    def show(self):
+        """shows the room in the CLI
+        player is a tuple of coordinates
+        opponents is a list of tuples with coordinates
+        """
+        for line in self.cells:
+            for cell in line:
+                if str(type(cell)) == "<class '__main__.monster'>":
+                    print "[x]",
+                elif str(type(cell)) == "<class '__main__.character'>":
+                    print "[o]",
+                else:
+                    print "[ ]",
+            print "\n"
+                
+                
+        
+
 class battle(object):
 	def __init__(self, player, opponent, reason):
 		print reason.format(opponent = opponent.type)
@@ -181,9 +173,16 @@ class battle(object):
 			sleep(1)
 			
 			if playeroption >= 2 and monsteroption >= 2:
-				print "\t{player} damages the {monster} for {damage}!".format(player = self.player.name, monster = self.opponent.type, damage = playerdamage)
-				print "\t{monster} damages {player} for {damage}!".format(monster = self.opponent.type, player = self.player.name, damage = monsterdamage)
-				print "\t\t\t\t{player} {phealth} || {mhealth} {monster}".format(player = self.player.name, phealth = self.player.health, mhealth = self.opponent.health, monster = self.opponent.type)
+				print "\t{player} damages the {monster} for {damage}!".format(
+				            player = self.player.name, monster = self.opponent.type, 
+				            damage = playerdamage)
+				print "\t{monster} damages {player} for {damage}!".format(
+				            monster = self.opponent.type, player = self.player.name, 
+				            damage = monsterdamage)
+				print "\t\t\t\t{player} {phealth} || {mhealth} {monster}".format(
+				            player = self.player.name, phealth = self.player.health, 
+				            mhealth = self.opponent.health, 
+				            monster = self.opponent.type)
 				
 			elif monsteroption == 1 and playeroption >= 2:
 				print "{player} misses!".format(player = self.player.name)
@@ -203,27 +202,28 @@ class battle(object):
 			return "win"
 
 class monster(object):
-	"""This defines monsters in both the Fight and the Room classes."""
-	def __init__(self, x, y, room, mtype, strength, vitality, health):
-		#check if coordinates are already occupied:
-		allowed = True
-		for monster in room.monsters:
-			if (x, y) == (monster.x, monster.y):
-				allowed = False
-				break
-			else:
-				allowed = True
-		if allowed == True:
-			self.x = x
-			self.y = y
-			self.room = room
-			self.type = mtype
-			self.strength = strength
-			self.vitality = vitality
-			self.health = health
-		else:
-			print "monster crashed!"
-			del self
+    """both for fights and rooms"""
+    def __init__(self,x,y,room,mtype,strength,vitality,health):
+        #check if coords are taken
+        allowed = True
+        for monster in room.monsters:
+            if (x,y) == (monster.x,monster.y):
+                allowed = False
+                break
+            else:
+                allowed = True
+        if allowed == True:
+            self.x = x
+            self.y = y
+            self.room = room
+            self.type = mtype
+            self.strength = strength
+            self.vitality = vitality
+            self.health = health
+        else:
+            print "monster crashed"
+            del self
+
 			
 #Start the game.
 print "\nWhat is your name, traveler?\n"
@@ -245,10 +245,10 @@ newb_room = room(10, 10, [])
 
 startmonsters = [] #sets up a dict full of monsters for this instance.
 for x in range(5): #you can put a randint in the range() portion to randomize the number of monsters present.
-	startmonsters.append(monster(randint(0, newb_room.width - 1), randint(0, newb_room.height - 1), newb_room, "Muttshroom", 50, 25, 400))
+	startmonsters.append(monster(randint(0, newb_room.width-1), randint(0, newb_room.height-1), newb_room, "Muttshroom", 50, 25, 400))
 for x in range(2):
 	startmonsters.append(monster(randint(0, newb_room.width - 1), randint(0, newb_room.height - 1), newb_room, "Tripper", 100, 25, 500))
-startmonsters.append(monster(randint(0, newb_room.width - 1), randint(0, newb_room.height - 1), newb_room, "Rave Wraith!", 135, 40, 1000))
+startmonsters.append(monster(randint(0, newb_room.width-1), randint(0, newb_room.height-1), newb_room, "Rave Wraith!", 135, 40, 1000))
 newb_room.addmonsters(startmonsters)
 newb_room.show()
 
